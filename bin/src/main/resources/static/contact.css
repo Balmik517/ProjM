@@ -1,0 +1,122 @@
+*{
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box;
+  font-family: 'Noto Serif', serif;
+}
+
+nav{
+  background: #159957a6;  /* fallback for old browsers */
+  background: -webkit-linear-gradient(to right, #155799a6, #159957a6);  /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to right, #155799a6, #159957a6); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  position: fixed;
+  color: azure;
+  padding: 10px;
+  padding-left: 50px;
+  box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.562);
+  width: 100%;
+}
+
+#navbar div{
+display: inline-block;
+}
+#nav1{
+color: white;
+padding: 12px;
+font-weight: 600;
+}
+
+#nav1 h1{
+display: inline-block;
+margin-left: 20px;
+letter-spacing: 10px;
+}
+
+#navbar a{
+text-decoration: none;
+color: white;
+font-size: 14px;
+letter-spacing: 2px;
+}
+
+#list ul{
+display: inline-block;
+margin-left: 200px;
+}
+
+#list li{
+display: inline-block;
+color: white;
+margin-left: 40px;
+}
+
+#main-body{
+    padding-left: 50px;
+    padding-top: 150px;
+    /* color: tomato; */
+    letter-spacing: 1px;
+    
+}
+
+#main-body h2{
+    margin-top: 2%;
+    color: rgb(253, 247, 247);
+
+}
+
+
+form{
+	/* border: 1px solid black; */
+	/* background-color: #0c7866; */
+    background: #76837ca6;  /* fallback for old browsers */
+    background: -webkit-linear-gradient(to right, #155799a6, #159957a6);  /* Chrome 10-25, Safari 5.1-6 */
+    background: linear-gradient(to right, #155799a6, #159957a6); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.562);
+	position: relative;
+	width: 40%;
+	padding: 20px;
+    margin-left: 30%;
+    color: white;
+}
+
+.form-group{
+	margin: 30px;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+
+
+input {
+	width: 60%;
+	/* margin-top: 10px; */
+	height: 30px;
+    float: right;
+}
+
+textarea{
+    width: 60%;
+    float: right;
+    height: 100px;
+}
+
+
+
+input[type=submit],[type=reset]{
+	background-color: rgba(2, 0, 110, 0.945);
+	color: #ffffff;
+    letter-spacing: 3px;
+	border: none;
+	height: 40px;
+	font-size: 20px;
+	margin-top: 35px;
+    float: none;
+    width: 100%;
+    
+}
+
+body{
+    background-image: url("/images/ashim-d-silva-pGcqw1ARGyg-unsplash.jpg");
+    background-size: cover;
+}
+
