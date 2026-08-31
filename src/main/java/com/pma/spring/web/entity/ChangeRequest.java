@@ -41,6 +41,18 @@ public class ChangeRequest {
     @Column(length = 30)
     private String legacyTicketNo;
 
+    /**
+     * Project the change request applies to. Plain int rather than a JPA
+     * relationship, so the link between the change request and project tables
+     * only exists in application code.
+     */
+    @Column(name = "project_id")
+    private int projectId;
+
+    /** Identity id of the approver, populated by the approval workflow. */
+    @Column(name = "approver_id")
+    private int approverId;
+
     private int escalationLevel;
 
     @Temporal(value = TemporalType.TIMESTAMP)
@@ -105,6 +117,22 @@ public class ChangeRequest {
 
     public void setLegacyTicketNo(String legacyTicketNo) {
         this.legacyTicketNo = legacyTicketNo;
+    }
+
+    public int getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(int projectId) {
+        this.projectId = projectId;
+    }
+
+    public int getApproverId() {
+        return approverId;
+    }
+
+    public void setApproverId(int approverId) {
+        this.approverId = approverId;
     }
 
     public int getEscalationLevel() {

@@ -13,4 +13,10 @@ public interface ChangeRequestRepository extends JpaRepository<ChangeRequest, In
     List<ChangeRequest> findByStatus(String status);
 
     List<ChangeRequest> findByOwner(String owner);
+
+    List<ChangeRequest> findByProjectId(int projectId);
+
+    List<ChangeRequest> findByProjectIdAndStatus(int projectId, String status);
+
+    long countByProjectIdAndStatus(int projectId, String status);
 }

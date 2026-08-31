@@ -1,0 +1,606 @@
+Yes. At this point, I would **stop adding everything in one large change**.
+
+Because `ProjM` is also being used to test your **Decomposition Advisor**, the Git history itself should become part of the benchmark. Your advisor already uses **git co-change** as a clustering signal, with co-change weighted strongly during community detection. 
+
+So the next evolution should look like a **real application that grew over time**.
+
+## My recommendation
+
+Keep every existing package unchanged:
+
+```text
+com.pma.spring.web.*
+```
+
+Then introduce new domain-oriented packages gradually:
+
+```text
+com.pma.spring.billing
+com.pma.spring.notification
+com.pma.spring.reporting
+com.pma.spring.integration
+com.pma.spring.audit
+com.pma.spring.task
+```
+
+Don't add all six at once.
+
+Build them in **feature waves**.
+
+---
+
+# Phase 1 — Task Management
+
+Add:
+
+```text
+com.pma.spring.task
+├── controller
+├── service
+├── repository
+├── entity
+└── dto
+```
+
+Features:
+
+```text
+Create task
+Assign task
+Update task
+Change task status
+List project tasks
+Task priority
+Task due date
+```
+
+Database:
+
+```text
+project_tasks
+```
+
+Dependency:
+
+```text
+Task -> Project
+Task -> User
+```
+
+This gives you a relatively clean candidate.
+
+### Commit
+
+```text
+feat: add project task management
+```
+
+---
+
+# Phase 2 — Billing
+
+Add:
+
+```text
+com.pma.spring.billing
+├── controller
+├── service
+├── repository
+├── entity
+└── dto
+```
+
+Features:
+
+```text
+Create invoice
+Calculate invoice
+Approve invoice
+Get invoice
+List project invoices
+```
+
+Tables:
+
+```text
+invoices
+```
+
+Dependency:
+
+```text
+Billing -> Project
+Billing -> User
+```
+
+Then add one payment sub-area:
+
+```text
+com.pma.spring.billing.payment
+```
+
+with:
+
+```text
+payments
+```
+
+### Commit sequence
+
+Don't do it in one commit.
+
+```text
+feat: add project invoicing
+feat: add payment processing
+```
+
+This creates useful temporal evolution.
+
+---
+
+# Phase 3 — Notifications
+
+Add:
+
+```text
+com.pma.spring.notification
+├── controller
+├── service
+├── repository
+├── entity
+└── dto
+```
+
+Features:
+
+```text
+Create notification
+Mark as read
+List user notifications
+Project completion notification
+Invoice notification
+Change request notification
+```
+
+Table:
+
+```text
+notifications
+```
+
+Then connect it to existing/new functionality:
+
+```text
+Project -> Notification
+Billing -> Notification
+ChangeRequest -> Notification
+Task -> Notification
+```
+
+### Commits
+
+```text
+feat: add notification management
+feat: integrate notifications with project workflow
+```
+
+This is particularly useful because your advisor should eventually see **Notification as a potentially reusable but cross-cutting capability**.
+
+---
+
+# Phase 4 — Audit
+
+Add:
+
+```text
+com.pma.spring.audit
+├── service
+├── repository
+├── entity
+└── dto
+```
+
+Table:
+
+```text
+audit_events
+```
+
+Then introduce calls from several domains:
+
+```text
+Project -> Audit
+Task -> Audit
+Billing -> Audit
+Notification -> Audit
+```
+
+### Commit
+
+```text
+feat: add audit event tracking
+```
+
+Now `Audit` becomes a classic shared capability.
+
+Your advisor should eventually understand:
+
+> This is important infrastructure, but that does not automatically make it a standalone business microservice.
+
+That is a good test.
+
+---
+
+# Phase 5 — Reporting
+
+This should be intentionally different.
+
+Add:
+
+```text
+com.pma.spring.reporting
+├── controller
+├── service
+├── repository
+├── dto
+└── model
+```
+
+Features:
+
+```text
+Project summary
+Task summary
+Billing summary
+User activity summary
+Operational dashboard data
+```
+
+And deliberately make Reporting read from:
+
+```text
+Project
+Task
+User
+Invoice
+Payment
+ChangeRequest
+AuditEvent
+```
+
+This will create a lot of cross-domain edges.
+
+### Commits
+
+```text
+feat: add project reporting
+feat: add billing and task reporting
+feat: add operational audit reporting
+```
+
+Now Reporting becomes a **highly coupled candidate**.
+
+That's exactly what you want.
+
+---
+
+# Phase 6 — External Integration
+
+Add:
+
+```text
+com.pma.spring.integration
+├── controller
+├── service
+├── client
+├── repository
+├── entity
+└── dto
+```
+
+Features:
+
+```text
+Create integration request
+Queue integration request
+Retry failed request
+Track integration status
+```
+
+Table:
+
+```text
+integration_requests
+```
+
+Then let it depend on:
+
+```text
+Project
+Billing
+Notification
+Audit
+```
+
+### Commits
+
+```text
+feat: add external integration requests
+feat: add integration retry processing
+```
+
+This creates an interesting candidate because Integration may be fairly isolated internally, but it touches several business areas.
+
+---
+
+# Phase 7 — Scheduled processing
+
+Now use the existing scheduler area.
+
+Add jobs for:
+
+```text
+Pending invoice processing
+Notification cleanup
+Integration retry
+Report snapshot generation
+```
+
+Example:
+
+```text
+scheduler
+   |
+   +--> billing
+   +--> notification
+   +--> integration
+   +--> reporting
+```
+
+### Commits
+
+```text
+feat: add scheduled invoice processing
+feat: add integration retry job
+feat: add report snapshot scheduler
+```
+
+This creates **runtime coupling** on top of static coupling.
+
+---
+
+# Phase 8 — Introduce the legacy problems gradually
+
+This is where I would intentionally evolve the application rather than dropping all smells into one commit.
+
+### Commit 1
+
+Introduce a shared utility:
+
+```text
+refactor: introduce common legacy utility
+```
+
+### Commit 2
+
+Introduce cross-domain service dependency:
+
+```text
+feat: connect billing with project lifecycle
+```
+
+### Commit 3
+
+Introduce broad transaction:
+
+```text
+feat: make project completion workflow transactional
+```
+
+### Commit 4
+
+Add audit + notification inside that transaction:
+
+```text
+feat: extend project completion workflow
+```
+
+### Commit 5
+
+Add reporting to the same workflow:
+
+```text
+feat: generate completion report from project workflow
+```
+
+Now you have historical evidence showing how the architecture became coupled.
+
+That's much better than creating:
+
+```text
+GodService.java
+```
+
+in a single giant commit.
+
+---
+
+# The Git history I would target
+
+Something like:
+
+```text
+main
+|
++-- feat: add project task management
+|
++-- feat: add project invoicing
+|
++-- feat: add payment processing
+|
++-- feat: add notification management
+|
++-- feat: integrate notifications with project workflow
+|
++-- feat: add audit event tracking
+|
++-- feat: add project reporting
+|
++-- feat: add billing and task reporting
+|
++-- feat: add external integration requests
+|
++-- feat: add integration retry processing
+|
++-- feat: add scheduled invoice processing
+|
++-- feat: extend project completion workflow
+|
++-- refactor: introduce common legacy utility
+|
++-- feat: add broad project completion transaction
+|
++-- fix: resolve integration retry failure
+|
++-- feat: add operational reporting
+```
+
+That gives you a **history of architectural growth**, not just a final-state monolith.
+
+---
+
+# Why this is especially useful for your advisor
+
+Your advisor's community detection can incorporate:
+
+```text
+Code dependencies
+        +
+Data access
+        +
+Shared tables
+        +
+Git co-change
+```
+
+
+
+So now your sample project can tell an interesting story:
+
+### Early history
+
+```text
+Task
+Billing
+Notification
+```
+
+mostly evolve independently.
+
+### Middle history
+
+```text
+Project ↔ Billing
+Project ↔ Notification
+Billing ↔ Notification
+```
+
+start appearing.
+
+### Later history
+
+```text
+Reporting
+    ↓
+Project
+Billing
+Task
+Audit
+```
+
+changes frequently together.
+
+This gives the advisor temporal evidence that certain parts of the monolith have become coupled over time.
+
+---
+
+# One important rule
+
+**Do not create 50 meaningless commits just to generate Git history.**
+
+Every commit should represent a believable engineering change:
+
+```text
+feature
+bug fix
+integration
+refactor
+performance improvement
+transaction change
+scheduled job
+reporting enhancement
+```
+
+And keep each change focused.
+
+For example, this is good:
+
+```text
+feat: add payment processing
+```
+
+This is bad:
+
+```text
+feat: add billing payment notification reporting audit integration
+```
+
+The latter destroys your co-change signal because everything changes together.
+
+---
+
+# Ideal final shape
+
+After all the evolution, I would aim for:
+
+```text
+Existing ProjM
+     +
+Task
+     +
+Billing
+     +
+Payment
+     +
+Notification
+     +
+Audit
+     +
+Reporting
+     +
+Integration
+     +
+Schedulers
+     +
+Legacy utilities
+     +
+Cross-domain transactions
+     +
+Shared data
+     +
+Real Git history
+```
+
+That gives you **three dimensions of legacy**:
+
+```text
+Structural legacy
+       +
+Runtime/data coupling
+       +
+Historical coupling
+```
+
+And that is much more valuable for your Decomposition Advisor than simply making the project bigger.
+
+One thing I would do before starting Phase 1 is create a **feature roadmap of around 15–20 commits**, so every future commit has a deliberate architectural purpose and the resulting Git history becomes a controlled benchmark rather than random project growth.

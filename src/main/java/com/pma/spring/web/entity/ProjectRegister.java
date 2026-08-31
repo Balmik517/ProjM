@@ -31,6 +31,35 @@ public class ProjectRegister {
 	@DateTimeFormat(pattern="yyyy-MM-dd")
 	Date endDate;
 
+	/**
+	 * Lifecycle state of the project. Written by the project component, the
+	 * project-management facade and the completion workflow, and read by
+	 * billing, reporting, notification and integration code paths - which is
+	 * what makes ownership of this row ambiguous.
+	 */
+	@Column(length = 20)
+	private String status;
+
+	@Temporal(value = TemporalType.TIMESTAMP)
+	@DateTimeFormat(pattern="yyyy-MM-dd HH:mm:ss")
+	private Date completedAt;
+
+	public String getStatus() {
+		return status;
+	}
+
+	public void setStatus(String status) {
+		this.status = status;
+	}
+
+	public Date getCompletedAt() {
+		return completedAt;
+	}
+
+	public void setCompletedAt(Date completedAt) {
+		this.completedAt = completedAt;
+	}
+
 	public int getProjectId() {
 		return projectId;
 	}

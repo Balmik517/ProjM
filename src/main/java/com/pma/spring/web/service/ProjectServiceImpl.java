@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.pma.spring.web.entity.ProjectRegister;
 import com.pma.spring.web.repository.ProjectRepository;
+import com.pma.spring.web.util.LegacyUtils;
 
 @Service
 public class ProjectServiceImpl implements ProjectService {
@@ -18,6 +19,8 @@ public class ProjectServiceImpl implements ProjectService {
 	@Override
 	public ProjectRegister save(ProjectRegister project) {
 		ProjectRegister optionalSave = projectRepository.save(project);
+		// Shared legacy helper - see LegacyUtils for the other callers.
+		LegacyUtils.recordDomainTouch("project", "save");
 		return optionalSave;
 	}
 

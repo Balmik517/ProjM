@@ -1,4 +1,5 @@
 package com.pma.spring.web.service;
+// OPENREWRITE-PREVIEW:java.security.secure-random Detected 1 Math.random() usage(s); replace with SecureRandom for stronger entropy.
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
