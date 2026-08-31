@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.pma.spring.web.entity.UserRegister;
 import com.pma.spring.web.repository.UserRepository;
+import com.pma.spring.web.util.LegacyUtils;
 
 @Service
 public class UserServiceImpl implements UserService{
@@ -20,7 +21,9 @@ public class UserServiceImpl implements UserService{
 	@Override
 	public UserRegister save(UserRegister user) {
 		UserRegister optionalSave = userRepository.save(user) ;
-		return optionalSave;		
+		// Shared legacy helper - identity is one of many domains reporting here.
+		LegacyUtils.recordDomainTouch("identity", "save");
+		return optionalSave;
 
 	}
 	@Override
