@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.pma.spring.integration.util.WebhookPayloadUtil;
 import com.pma.spring.notification.service.NotificationPreferenceService;
 import com.pma.spring.web.entity.AuditEvent;
 import com.pma.spring.web.entity.Notification;
@@ -26,6 +27,10 @@ import com.pma.spring.web.util.LegacyUtils;
  * This is the kind of cross-cutting read the doc's Phase 3 flagged: the
  * result looks like it belongs to "notification", but its dependency graph
  * touches audit and, transitively, whichever domain wrote each audit event.
+ * Audit lines are formatted through {@link WebhookPayloadUtil}, a small
+ * helper that otherwise belongs to {@code com.pma.spring.integration} - the
+ * same "one static helper called from unrelated components" shape as
+ * {@link com.pma.spring.web.util.LegacyUtils}, just smaller.
  */
 @Service
 public class NotificationDigestService {
@@ -67,8 +72,9 @@ public class NotificationDigestService {
             if (auditLines >= MAX_AUDIT_LINES) {
                 break;
             }
-            lines.add(LegacyUtils.formatTimestamp(event.getCreatedAt()) + " [AUDIT] " + event.getEntityType() + "#"
-                    + event.getEntityId() + " " + event.getEventType());
+            lines.add(LegacyUtils.formatTimestamp(event.getCreatedAt()) + " [AUDIT] "
+                    + WebhookPayloadUtil.formatEventLine(event.getEventType(),
+                            event.getEntityType() + "#" + event.getEntityId()));
             auditLines++;
         }
 

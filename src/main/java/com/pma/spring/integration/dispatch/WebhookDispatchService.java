@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.pma.spring.integration.entity.WebhookSubscription;
 import com.pma.spring.integration.service.WebhookSubscriptionService;
+import com.pma.spring.integration.util.WebhookPayloadUtil;
 import com.pma.spring.web.entity.Notification;
 import com.pma.spring.web.repository.NotificationRepository;
 import com.pma.spring.web.service.AuditService;
@@ -60,7 +61,8 @@ public class WebhookDispatchService {
 
             for (WebhookSubscription subscription : subscriptions) {
                 auditService.record(AuditService.ENTITY_NOTIFICATION, notification.getId(), "WEBHOOK_DISPATCHED",
-                        SYSTEM_ACTOR_ID, "target=" + subscription.getTargetUrl());
+                        SYSTEM_ACTOR_ID,
+                        WebhookPayloadUtil.formatEventLine(notification.getType(), subscription.getTargetUrl()));
             }
 
             dispatched++;
