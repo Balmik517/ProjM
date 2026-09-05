@@ -65,6 +65,12 @@ public class WebhookDispatchService {
                         WebhookPayloadUtil.formatEventLine(notification.getType(), subscription.getTargetUrl()));
             }
 
+            // Previously missing: without this, the notification stayed
+            // PENDING forever and every ten-minute run re-dispatched the
+            // same backlog to every subscriber again.
+            notification.setStatus(LegacyUtils.STATUS_SENT);
+            notificationRepository.save(notification);
+
             dispatched++;
         }
 
