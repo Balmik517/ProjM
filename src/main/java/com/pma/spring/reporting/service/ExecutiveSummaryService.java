@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.pma.spring.billing.entity.CreditNote;
 import com.pma.spring.billing.repository.CreditNoteRepository;
+import com.pma.spring.integration.service.WebhookSubscriptionService;
 import com.pma.spring.reporting.model.ExecutiveSummary;
 import com.pma.spring.web.entity.ProjectRegister;
 import com.pma.spring.web.repository.IntegrationRequestRepository;
@@ -26,10 +27,15 @@ import com.pma.spring.web.util.LegacyUtils;
  * A single read touches: {@code project_register}, {@code project_tasks},
  * {@code invoices}, {@code notifications} and {@code integration_requests}
  * (all still in {@code com.pma.spring.web}) plus {@code credit_notes} (the
- * new {@code com.pma.spring.billing} package). This mirrors the doc's Phase 5
- * guidance almost exactly: Reporting should read from everywhere, on
+ * {@code com.pma.spring.billing} package) and, as of this revision,
+ * {@code webhook_subscriptions} (the {@code com.pma.spring.integration}
+ * package, via {@link WebhookSubscriptionService}). This mirrors the doc's
+ * Phase 5 guidance almost exactly: Reporting should read from everywhere, on
  * purpose, so it becomes the highly-coupled candidate in the dependency
- * graph rather than a clean extraction target.
+ * graph rather than a clean extraction target. Note the webhook count is
+ * global, not project-scoped - subscriptions have no project association in
+ * this model - so it is the one field on this summary that does not vary
+ * per project.
  */
 @Service
 public class ExecutiveSummaryService {
@@ -53,6 +59,9 @@ public class ExecutiveSummaryService {
 
     @Autowired
     private CreditNoteRepository creditNoteRepository;
+
+    @Autowired
+    private WebhookSubscriptionService webhookSubscriptionService;
 
     @Transactional(readOnly = true)
     public ExecutiveSummary summarize(int projectId) {
@@ -85,6 +94,7 @@ public class ExecutiveSummaryService {
                 .filter(n -> LegacyUtils.STATUS_PENDING.equals(n.getStatus())).count());
 
         summary.setIntegrationRequestCount(integrationRequestRepository.findByProjectId(projectId).size());
+        summary.setActiveWebhookCount((int) webhookSubscriptionService.countActive());
 
         LegacyUtils.recordDomainTouch("reporting", "EXECUTIVE_SUMMARY");
         logger.info("Executive summary generated for project " + projectId);
