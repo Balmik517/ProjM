@@ -13,14 +13,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.pma.spring.billing.service.CreditNoteService;
+import com.pma.spring.integration.entity.WebhookSubscription;
+import com.pma.spring.integration.service.WebhookSubscriptionService;
+import com.pma.spring.integration.util.WebhookPayloadUtil;
+import com.pma.spring.reporting.model.ExecutiveSummary;
+import com.pma.spring.reporting.service.ExecutiveSummaryService;
 import com.pma.spring.web.entity.Invoice;
 import com.pma.spring.web.entity.ProjectMember;
 import com.pma.spring.web.entity.ProjectRegister;
 import com.pma.spring.web.entity.ProjectTask;
+import com.pma.spring.web.entity.ReportSnapshot;
 import com.pma.spring.web.repository.InvoiceRepository;
 import com.pma.spring.web.repository.ProjectMemberRepository;
 import com.pma.spring.web.repository.ProjectRepository;
 import com.pma.spring.web.repository.ProjectTaskRepository;
+import com.pma.spring.web.repository.ReportSnapshotRepository;
 import com.pma.spring.web.service.AuditService;
 import com.pma.spring.web.service.NotificationService;
 import com.pma.spring.web.util.LegacyUtils;
@@ -38,15 +45,21 @@ import com.pma.spring.web.util.LegacyUtils;
  * should trigger, is exactly the kind of consistency risk a real monolith
  * accumulates when a domain gets touched from more than one place over time.
  *
- * This class itself grows across three commits, each widening the single
+ * This class grew across three commits, each widening the single
  * {@code @Transactional} method to reach one more package: first project and
- * task, then notification and billing (this revision), then reporting and
- * integration.
+ * task, then notification and billing, then reporting and integration (this
+ * revision). The finished method now touches seven packages - project, task,
+ * audit, notification, billing, reporting and integration - in one
+ * transaction, which is the single broadest write-path in the application.
  */
 @Service
 public class ProjectCompletionWorkflowService {
 
     private static final Logger logger = Logger.getLogger(ProjectCompletionWorkflowService.class);
+
+    private static final String EVENT_PROJECT_COMPLETED = "PROJECT_COMPLETED";
+
+    private static final int SYSTEM_ACTOR_ID = 0;
 
     public static final String STATUS_COMPLETED = "COMPLETED";
 
@@ -73,6 +86,17 @@ public class ProjectCompletionWorkflowService {
 
     @Autowired
     private CreditNoteService creditNoteService;
+
+    /** Cross-package read: a completion snapshot is generated from the same executive summary reporting uses. */
+    @Autowired
+    private ExecutiveSummaryService executiveSummaryService;
+
+    @Autowired
+    private ReportSnapshotRepository reportSnapshotRepository;
+
+    /** Cross-package read+write: any subscriber to PROJECT_COMPLETED gets a dispatch record. */
+    @Autowired
+    private WebhookSubscriptionService webhookSubscriptionService;
 
     @Transactional
     public Map<String, Object> completeProject(int projectId, int actorId) {
@@ -120,12 +144,29 @@ public class ProjectCompletionWorkflowService {
                     actorId, "outstanding=" + outstanding);
         }
 
+        ExecutiveSummary summary = executiveSummaryService.summarize(projectId);
+        ReportSnapshot snapshot = new ReportSnapshot();
+        snapshot.setProjectId(projectId);
+        snapshot.setReportType("PROJECT_COMPLETION");
+        snapshot.setGeneratedBy("ProjectCompletionWorkflowService");
+        snapshot.setSnapshotData("openTasks=" + summary.getOpenTaskCount() + ";invoiced=" + summary.getInvoicedTotal()
+                + ";credited=" + summary.getCreditedTotal() + ";activeWebhooks=" + summary.getActiveWebhookCount());
+        snapshot.setCreatedAt(new Date());
+        reportSnapshotRepository.save(snapshot);
+
+        List<WebhookSubscription> subscriptions = webhookSubscriptionService.findActiveFor(EVENT_PROJECT_COMPLETED);
+        for (WebhookSubscription subscription : subscriptions) {
+            auditService.record(AuditService.ENTITY_PROJECT, projectId, "WEBHOOK_DISPATCHED", SYSTEM_ACTOR_ID,
+                    WebhookPayloadUtil.formatEventLine(EVENT_PROJECT_COMPLETED, subscription.getTargetUrl()));
+        }
+
         Map<String, Object> result = new HashMap<String, Object>();
         result.put("projectId", Integer.valueOf(projectId));
         result.put("status", project.getStatus());
         result.put("closedTaskCount", Integer.valueOf(closedTaskCount));
         result.put("notifiedMemberCount", Integer.valueOf(members.size()));
         result.put("outstandingBalance", outstanding);
+        result.put("webhookDispatchCount", Integer.valueOf(subscriptions.size()));
 
         logger.info("Project " + projectId + " completed via full workflow, closed " + closedTaskCount + " task(s)");
         return result;
