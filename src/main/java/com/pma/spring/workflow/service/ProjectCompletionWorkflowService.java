@@ -1,5 +1,6 @@
 package com.pma.spring.workflow.service;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -11,11 +12,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.pma.spring.billing.service.CreditNoteService;
+import com.pma.spring.web.entity.Invoice;
+import com.pma.spring.web.entity.ProjectMember;
 import com.pma.spring.web.entity.ProjectRegister;
 import com.pma.spring.web.entity.ProjectTask;
+import com.pma.spring.web.repository.InvoiceRepository;
+import com.pma.spring.web.repository.ProjectMemberRepository;
 import com.pma.spring.web.repository.ProjectRepository;
 import com.pma.spring.web.repository.ProjectTaskRepository;
 import com.pma.spring.web.service.AuditService;
+import com.pma.spring.web.service.NotificationService;
 import com.pma.spring.web.util.LegacyUtils;
 
 /**
@@ -33,7 +40,8 @@ import com.pma.spring.web.util.LegacyUtils;
  *
  * This class itself grows across three commits, each widening the single
  * {@code @Transactional} method to reach one more package: first project and
- * task, then notification and billing, then reporting and integration.
+ * task, then notification and billing (this revision), then reporting and
+ * integration.
  */
 @Service
 public class ProjectCompletionWorkflowService {
@@ -51,6 +59,20 @@ public class ProjectCompletionWorkflowService {
 
     @Autowired
     private AuditService auditService;
+
+    /** Cross-package write: every active member is notified the project closed. */
+    @Autowired
+    private ProjectMemberRepository projectMemberRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    /** Cross-package read: outstanding balance is computed net of credit notes. */
+    @Autowired
+    private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private CreditNoteService creditNoteService;
 
     @Transactional
     public Map<String, Object> completeProject(int projectId, int actorId) {
@@ -82,10 +104,28 @@ public class ProjectCompletionWorkflowService {
                 "closedTasks=" + closedTaskCount);
         LegacyUtils.recordDomainTouch("workflow", "PROJECT_COMPLETION");
 
+        List<ProjectMember> members = projectMemberRepository.findByProjectId(projectId);
+        for (ProjectMember member : members) {
+            notificationService.queue(member.getUserId(), projectId, NotificationService.TYPE_PROJECT_COMPLETED,
+                    "Project \"" + LegacyUtils.truncate(project.getProjectName(), 100) + "\" has been completed");
+        }
+
+        BigDecimal outstanding = BigDecimal.ZERO;
+        List<Invoice> invoices = invoiceRepository.findByProjectId(projectId);
+        for (Invoice invoice : invoices) {
+            outstanding = outstanding.add(creditNoteService.outstandingAfterCredits(invoice.getId()));
+        }
+        if (outstanding.compareTo(BigDecimal.ZERO) > 0) {
+            auditService.record(AuditService.ENTITY_PROJECT, projectId, "PROJECT_COMPLETED_WITH_BALANCE_DUE",
+                    actorId, "outstanding=" + outstanding);
+        }
+
         Map<String, Object> result = new HashMap<String, Object>();
         result.put("projectId", Integer.valueOf(projectId));
         result.put("status", project.getStatus());
         result.put("closedTaskCount", Integer.valueOf(closedTaskCount));
+        result.put("notifiedMemberCount", Integer.valueOf(members.size()));
+        result.put("outstandingBalance", outstanding);
 
         logger.info("Project " + projectId + " completed via full workflow, closed " + closedTaskCount + " task(s)");
         return result;
