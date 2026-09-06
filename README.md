@@ -74,9 +74,20 @@ opposite convention from the original tree. Critically, these packages are
 not sealed off from the original code or from each other: several of them
 read (and in one case, delete from) tables that `com.pma.spring.web`
 components still own, and a couple of small utilities are already shared
-across package boundaries. The Git history shows this coupling being
-introduced one deliberate, focused commit at a time rather than all at once
-- see [Reading the Git history](#reading-the-git-history) below.
+across package boundaries. `com.pma.spring.task` and
+`com.pma.spring.integration` depend on each other in both directions - a
+genuine package-level cycle that Java happily compiles. The Git history
+shows this coupling being introduced one deliberate, focused commit at a
+time rather than all at once - see
+[Reading the Git history](#reading-the-git-history) below.
+
+**`com.pma.spring.workflow`** - a single service
+(`ProjectCompletionWorkflowService`) that completes a project in one
+`@Transactional` method spanning seven packages: project, task, audit,
+notification, billing, reporting and integration. It exists alongside
+`ProjectDomainService.closeOutProject` in the original code - a second,
+independent way to "complete a project" that the original method knows
+nothing about, deliberately left as a consistency risk rather than resolved.
 
 The package a class lives in is a hint, not the answer. Conceptual domains
 have to be inferred from what the code actually does: which classes call
@@ -308,6 +319,12 @@ POST   /integration/webhooks
 GET    /integration/webhooks?eventType={eventType}
 ```
 
+**`com.pma.spring.workflow`**
+
+```
+POST   /workflow/projects/{projectId}/complete-full?actorId={actorId}
+```
+
 ## Scheduled jobs
 
 Original: `BillingScheduler` (invoice sweep, reconciliation, write-offs),
@@ -366,8 +383,15 @@ understate how many components read a given table.
 repositories, domain services, cross-domain and wide transactional
 workflows, scheduled jobs, and HTTP endpoints, plus a regression check that
 the original endpoints still respond. The newer domain packages
-(`task`, `billing`, `notification`, `audit`, `reporting`, `integration`) do
-not yet have dedicated tests of their own.
+(`task`, `billing`, `notification`, `audit`, `reporting`, `integration`) and
+`com.pma.spring.workflow` each have their own test classes now too, using a
+separate `DomainBenchmarkTestData` helper (kept apart from the original
+`BenchmarkTestData`) for task/invoice/member fixtures. Coverage includes the
+task/notification and task/integration cross-package edges, the audit
+retention purge, the executive summary's cross-domain aggregation, the
+webhook dispatch sent-status fix, and the full seven-package project
+completion transaction, including its outstanding-balance and
+already-completed edge cases.
 
 The tests share one in-memory database across test classes, so fixtures use
 unique synthetic values and assertions are written relative to the rows each
